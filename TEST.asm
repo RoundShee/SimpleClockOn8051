@@ -1,5 +1,14 @@
 ;书P250
 ;P1.0--SDA  P1.1--SCL   P1.2--S0    P1.7--RST_L     P3.2--CLKOUT
+;P1.3--RST	P1.4--RS	P1.5--RW	P1.6--EN		P2--12864
+
+;RAM空间使用情况:
+;10H-1DH	PCF8563T初始化相关命令以及时间参数
+;20H-26H	秒中断原始数据读出存放处
+;28H-2FH	38H-3FH	CHAIFEN拆分程序存放处
+;30H-33H	12864屏幕使用!!!!!
+;60H		堆栈
+
 SDA		BIT		P1.0
 SCL		BIT		P1.1
 WSLA_8563	EQU		0A2H		;PCF8563T地址
@@ -7,38 +16,32 @@ RSLA_8563	EQU		0A3H		;
 WSLA_7290	EQU		70H			;ZLG7290B地址
 RSLA_7290	EQU		71H
 
-;ST12864程序
-;占用P2做并行输出
-;且占用一些
-RST		BIT		P1.3
+RST		BIT		P1.3		;ST12864程序
 RS      BIT		P1.4
 RW      BIT     P1.5
 EN      BIT     P1.6
-SONG    EQU     20H         ;要写入数据的存储单元-RAM 目前与12864不冲突
-READ    EQU     21H         ;读出数据存储单元
-XUNHUAN EQU     22H         ;循环变量单元
-COUNT   EQU     23H         ;查表计数器
+SONG    EQU     30H         ;要写入数据的存储单元-RAM 目前与12864不冲突
+READ    EQU     31H         ;读出数据存储单元
+XUNHUAN EQU     32H         ;循环变量单元
+COUNT   EQU     33H         ;查表计数器
 
-
+;主程序准备
 		ORG		0000H
 		LJMP	START
 		ORG		0003H
 		LJMP	INC_RCT			;/INT0中断入口单元
 		ORG		0100H
 START:	MOV		SP,#60H			;堆栈上移-避开变量区域
-
 		;初始化	屏幕
-        CLR     RST         ;芯片复位上电
+        CLR     RST         ;屏幕芯片复位上电
         LCALL   DELAY
         SETB    RST
         LCALL   ST12864_INT ;初始化12864
         LCALL   HANZI_WRITE ;调用显示汉字子程序
-
 		CLR		P1.7			;ZLG7290B复位
 		LCALL	DELAY
 		SETB	P1.7
-;变量存储
-;PCF8563T	10H-1DH		RAM
+		;变量存储	PCF8563T	10H-1DH		RAM
 		MOV		10H,#00H		;启动控制字
 		MOV		11H,#1FH		;设置报警及定时器中断
 
@@ -55,8 +58,7 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		MOV		1BH,#00H		;设置日期报警
 		MOV		1CH,#00H		;设置星期报警
 		MOV		1DH,#83H		;设定CLKOUT的频率1Hz
-
-;写入以上变量
+		;写入以上变量
 		MOV		R7,#0EH			;写入参数个数
 		MOV		R0,#10H			;连续变量的首地址
 		MOV		R2,#00H			;从器件的内部地址
@@ -67,9 +69,11 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		SETB	IT0				;触发方式-低电平触发
 		SJMP	$				;等待中断
 
-;屏幕内容区域
+;屏幕内容区域	ROM部分
 TABLE:  DB      "12大连理工大学12";第一行
         DB      "123456789123456";第三行
+		DB      "222222222222222";第二行
+		DB      "444444444444444";第四行
 
 ;模块初始化程序
 ST12864_INT:                ;模块初始化程序
