@@ -5,25 +5,25 @@
 ;RAM空间使用情况:
 ;10H-1DH	PCF8563T初始化相关命令以及时间参数
 ;20H-26H	秒中断原始数据读出存放处
-;28H-2FH	38H-3FH	CHAIFEN拆分程序存放处
+;28H-2FH	38H-3FH	秒个38H 秒十39H	CHAIFEN拆分程序结果存放处
 ;30H-33H	12864屏幕使用!!!!!
 ;60H		堆栈
 
-SDA		BIT		P1.0
-SCL		BIT		P1.1
+SDA			BIT		P1.0
+SCL			BIT		P1.1
 WSLA_8563	EQU		0A2H		;PCF8563T地址
 RSLA_8563	EQU		0A3H		;
 WSLA_7290	EQU		70H			;ZLG7290B地址
 RSLA_7290	EQU		71H
 
-RST		BIT		P1.3		;ST12864程序
-RS      BIT		P1.4
-RW      BIT     P1.5
-EN      BIT     P1.6
-SONG    EQU     30H         ;要写入数据的存储单元-RAM 目前与12864不冲突
-READ    EQU     31H         ;读出数据存储单元
-XUNHUAN EQU     32H         ;循环变量单元
-COUNT   EQU     33H         ;查表计数器
+RST			BIT		P1.3		;ST12864程序
+RS      	BIT		P1.4
+RW      	BIT     P1.5
+EN      	BIT     P1.6
+SONG    	EQU     30H         ;要写入数据的存储单元-RAM 目前与12864不冲突
+READ    	EQU     31H         ;读出数据存储单元
+XUNHUAN 	EQU     32H         ;循环变量单元
+COUNT   	EQU     33H         ;查表计数器
 
 ;主程序准备
 		ORG		0000H
@@ -70,10 +70,10 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		SJMP	$				;等待中断
 
 ;屏幕内容区域	ROM部分
-TABLE:  DB      "12大连理工大学12";第一行
-        DB      "123456789123456";第三行
-		DB      "222222222222222";第二行
-		DB      "444444444444444";第四行
+TABLE1:	DB      "12大连理工大学12";第一行
+TABLE2:	DB      "123456789123456";第三行
+TABLE3:	DB      "222222222222222";第二行
+TABLE4:	DB      "444444444444444";第四行
 
 ;模块初始化程序
 ST12864_INT:                ;模块初始化程序
@@ -113,8 +113,8 @@ CHK_LOP:MOV		A,P2
 HANZI_WRITE:				;写汉字子程序
 		MOV		SONG,#80H	;设定DDRAM地址AC=0
 		LCALL	SEND_ML
-		MOV		XUNHUAN,#32
-		MOV		DPTR,#TABLE
+		MOV		XUNHUAN,#64	;全部显示
+		MOV		DPTR,#TABLE1
 		MOV		A,#00H
 		MOV		COUNT,#00H
 HANZI_LOOP:
@@ -124,6 +124,24 @@ HANZI_LOOP:
 		INC		COUNT
 		MOV		A,COUNT
 		DJNZ	XUNHUAN,HANZI_LOOP
+		RET
+
+
+;写时间子程序
+TIME_WRITE:					;魔改程序
+		PUSH	00H
+		MOV		SONG,#80H	;第一行起始
+		LCALL	SEND_ML
+		MOV		XUNHUAN,#8	;全部显示
+		MOV		R0,#38H	;秒
+		MOV		A,@R0
+TIMWRT_LOOP:
+		MOV		A,@R0
+		MOV		SONG,A
+		LCALL	SEND_SJ
+		INC		R0
+		DJNZ	XUNHUAN,TIMWRT_LOOP
+		POP		00H
 		RET
 
 ;发送数据子程序
@@ -149,6 +167,7 @@ INC_RCT:
 		LCALL	ADJUST			;调时间调整子程序
 		LCALL	CHAIFEN			;拆分-包含查表??
 								;将20H-26H中的参数分别存放到28H-2FH年月日, 38H-3FH时分秒	两个8段
+		LCALL	TIME_WRITE
 		MOV		R7,#08H
 		MOV		R2,#10H
 		MOV		R3,#WSLA_7290
@@ -213,7 +232,7 @@ CHAIFEN:
 CF:		PUSH	02H
 		PUSH	DPH
 		PUSH	DPL
-		MOV		DPTR,#LEDGEG
+		MOV		DPTR,#LEDSEG
 		MOV		R2,A
 		ANL		A,#0FH
 		MOVC	A,@A+DPTR
@@ -227,7 +246,7 @@ CF:		PUSH	02H
 		POP		DPH
 		POP		02H
 		RET
-LEDGEG:	DB	0FCH,60H,0DAH,0F2H,66H,0B6H,0BEH,0E4H
+LEDSEG:	DB	0FCH,60H,0DAH,0F2H,66H,0B6H,0BEH,0E4H
 		DB	0FEH,0F6H,0EEH,3EH,9CH,7AH,9EH,8EH
 
 ADJUST:
