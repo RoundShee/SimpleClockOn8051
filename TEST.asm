@@ -79,6 +79,8 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		SETB	EA				;允许中断
 		SETB	EX0				;开启外部中断0
 		SETB	IT0				;触发方式-低电平触发
+		MOV		40H,#32H		;ASCII
+		MOV		41H,#30H
 		MOV		2EH,#0FCH
 		MOV		2FH,#0DAH		;初始化年高两位
 		SJMP	$				;等待中断
@@ -100,7 +102,12 @@ INC_RCT:
 		LCALL	RDNBYT			;读出数据放置到RAM的20H-26H中
 		LCALL	ADJUST			;调时间调整子程序
 		LCALL	CHAIFEN			;拆分-包含查表
+
+		MOV		SONG,#80H		;发年准备
+		MOV		XUNHUAN,#14
+		MOV		R0,#40H
 		LCALL	TIME_WRITE
+		;上面测试
 		MOV		R7,#08H
 		MOV		R2,#10H
 		MOV		R3,#WSLA_7290
@@ -169,9 +176,6 @@ HANZI_LOOP:
 ;SONG起始位置,XUNHUAN多少位,R0源始地址
 TIME_WRITE:					;魔改程序
 		LCALL	SEND_ML
-		MOV		XUNHUAN,#8	;全部显示
-		MOV		R0,#38H	;秒
-		MOV		A,@R0
 TIMWRT_LOOP:
 		MOV		A,@R0
 		MOV		SONG,A
@@ -271,7 +275,8 @@ CF:		PUSH	02H
 		ANL		A,#0FH			;取低位
 		ADD		A,'0'
 		MOV		R5,A
-		SUB		A,'0'
+		CLR		C
+		SUBB	A,'0'
 		MOVC	A,@A+DPTR		;查表
 		MOV		R3,A			;到R3
 		MOV		A,R2
@@ -279,7 +284,8 @@ CF:		PUSH	02H
 		ANL		A,#0FH
 		ADD		A,'0'
 		MOV		R6,A
-		SUB		A,'0'
+		CLR		C
+		SUBB	A,'0'
 		MOVC	A,@A+DPTR
 		MOV		R4,A			;到R4
 		POP		DPL
