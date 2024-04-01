@@ -1,23 +1,34 @@
 ;P1.0--SDA  P1.1--SCL   P1.2--S0    P1.7--RST_L     P3.2--CLKOUT
 ;P1.3--RST	P1.4--RS	P1.5--RW	P1.6--EN		P2--12864
+;P3.3--KINT
 
 ;RAM空间使用情况:
-;10H-1DH	PCF8563T初始化相关命令以及时间参数
+;10H-11H	PCF8563T初始化-设置报警及定时器中断
+;12H		;秒单元		都是BCD码
+;13H		;分单元		此段空间可被复用
+;14H		;小时单元
+;15H		;日期单元
+;16H		;星期单元
+;17H		;月单元
+;18H		;年单元
+;19H-1DH	;报警相关
 ;1EH-1FH	空俩
 ;20H-26H	秒中断原始数据读出存放处-再由adjust屏蔽无用位
-;27H		空一
+;27H		放键值
 ;28H-2FH	日l	日h	月l	月h 年0 年1	年2	年3
 ;30H-33H	12864屏幕-程序参数
 ;34H-37H	
 ;38H-3FH	秒l	秒h	-	分l	分h	-	时l	时h
 ;40H-41H	年3	年2		ASCII
 ;42H-43H	年1	年0
-;44H-45H	月h	月l
-;46H-47H	日h	日l
-;48H-49H	时h	时l
-;4AH-4BH	分h	分l
-;4CH-4DH	秒h	秒l
-;4EH		星期0-6		4FH	空
+;44H		'/'
+;45H-46H	月h	月l
+;47H		'/'
+;48H-49H	日h	日l
+;4AH		'/'
+;4BH-4CH	时h	时l
+;4DH		':'
+;4EH-4FH	分h	分l
 ;50H-5FH	
 ;60H		以上堆栈
 
@@ -36,12 +47,15 @@ SONG    	EQU     30H         ;要写入数据的存储单元-RAM 目前与12864�
 READ    	EQU     31H         ;读出数据存储单元
 XUNHUAN 	EQU     32H         ;循环变量单元
 COUNT   	EQU     33H         ;查表计数器
+KEYVAL		EQU		27H
 
 ;主程序准备
 		ORG		0000H
 		LJMP	START
 		ORG		0003H
 		LJMP	INC_RCT			;/INT0中断入口单元
+		ORG		0013H
+		LJMP	INT_7290		;扫描键盘中断
 		ORG		0100H
 START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		;初始化	屏幕
@@ -49,7 +63,7 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
         LCALL   DELAY
         SETB    RST
         LCALL   ST12864_INT ;初始化12864
-        ;LCALL   HANZI_WRITE ;调用显示汉字子程序
+        LCALL   HANZI_WRITE ;预先写入屏幕一些数据字符
 		CLR		P1.7			;ZLG7290B复位
 		LCALL	DELAY
 		SETB	P1.7
@@ -77,22 +91,25 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		MOV		R3,#WSLA_8563	;准备向PCF8563写入数据串
 		LCALL	WRNBYT			;写入时间,控制命令到8563
 		SETB	EA				;允许中断
-		SETB	EX0				;开启外部中断0
+		SETB	EX0				;开启外部中断0CLK
+		SETB	EX1				;按键中断开启
+		SETB	PX1				;按键优先于CLK
 		SETB	IT0				;触发方式-低电平触发
-		MOV		40H,#32H		;ASCII
+		CLR		IT1				;下降沿触发
+		MOV		40H,#32H		;ASCII年高两位-送屏幕初始化
 		MOV		41H,#30H
 		MOV		2EH,#0FCH
 		MOV		2FH,#0DAH		;初始化年高两位
 		SJMP	$				;等待中断
 
 ;屏幕内容区域	ROM部分
-TABLE1:	DB      "2024/0331/21:27";第一行
-TABLE2:	DB      "123456789123456";第三行
-TABLE3:	DB      "222222222222222";第二行
-TABLE4:	DB      "444444444444444";第四行
+TABLE1:	DB      "2024/03/31/21:27";第一行 16
+TABLE2:	DB      "星期            ";第三行
+TABLE3:	DB      "                ";第二行
+TABLE4:	DB      "                ";第四行
 
 
-;中断程序
+;中断程序-每秒中断
 INC_RCT:
 		MOV		R7,#07H			;读出数据个数
 		MOV		R0,#20H			;目标数据块首地址
@@ -103,8 +120,8 @@ INC_RCT:
 		LCALL	ADJUST			;调时间调整子程序
 		LCALL	CHAIFEN			;拆分-包含查表
 
-		MOV		SONG,#80H		;发年准备
-		MOV		XUNHUAN,#14
+		MOV		SONG,#80H		;上一行显示
+		MOV		XUNHUAN,#16		;2024/11/11/11:11
 		MOV		R0,#40H
 		LCALL	TIME_WRITE
 		;上面测试
@@ -117,6 +134,32 @@ INC_RCT:
 YEARS:	MOV		R0,#28H			;显示年月日
 DISP:	LCALL	WRNBYT			;调用ZLG7290B显示
 		JNB		P3.2,$
+		RETI
+
+;按键中断
+INT_7290:
+		PUSH	ACC
+		PUSH	PSW
+		PUSH	00H
+		PUSH	02H
+		PUSH	03H
+		PUSH	04H
+		PUSH	07H
+
+		MOV		R0,#KEYVAL		;源目地
+		MOV		R7,01H
+		MOV		R2,01H
+		MOV		R3,#WSLA_7290
+		MOV		R4,#RSLA_7290
+		LCALL	RDNBYT
+		;已经存放到KEYVAL中
+		POP		07H
+		POP		04H
+		POP		03H
+		POP		02H
+		POP		00H
+		POP		PSW
+		POP		ACC
 		RETI
 
 ;模块初始化程序
@@ -198,7 +241,7 @@ SEND_SJ:
 
 ;拆分子程序-将RAM空间20H-26H查表拆分送入28H-2FH,38H-3FH
 CHAIFEN:						;增加ASCII存储
-		PUSH	PSW
+		PUSH	PSW				;R5 ASCII低	R6高
 		PUSH	ACC
 		PUSH	03H				;R3
 		PUSH	04H
@@ -208,24 +251,25 @@ CHAIFEN:						;增加ASCII存储
 		LCALL	CF				;拆分,查表在R4(H),R3中
 		MOV		38H,R3
 		MOV		39H,R4
-		MOV		4DH,R5
-		MOV		4CH,R6			;ASCII
+		;MOV		4DH,R5
+		;MOV		4CH,R6			;ASCII
+		;这里缺代码	将秒转换为4DH的' ' 或者':'
 		MOV		3AH,#02H		;送分隔符-
 
 		MOV		A,21H			;取分钟 参数
 		LCALL	CF
 		MOV		3BH,R3
 		MOV		3CH,R4
-		MOV		4BH,R5
-		MOV		4AH,R6			;ASCII
+		MOV		4FH,R5
+		MOV		4EH,R6			;ASCII
 		MOV		3DH,#02H
 
 		MOV		A,22H			;取小时 参数
 		LCALL	CF
 		MOV		3EH,R3
 		MOV		3FH,R4
-		MOV		49H,R5
-		MOV		48H,R6			;ASCII
+		MOV		4CH,R5
+		MOV		4BH,R6			;ASCII
 
 		MOV		A,23H			;取日参数
 		LCALL	CF
@@ -234,8 +278,8 @@ CHAIFEN:						;增加ASCII存储
 		;MOV		R3,A
 		MOV		28H,R3
 		MOV		29H,R4
-		MOV		47H,R5
-		MOV		46H,R6			;ASCII
+		MOV		49H,R5
+		MOV		48H,R6			;ASCII
 
 		MOV		A,25H			;取月参数
 		LCALL	CF
@@ -244,8 +288,8 @@ CHAIFEN:						;增加ASCII存储
 		;MOV		R3,A
 		MOV		2AH,R3
 		MOV		2BH,R4
-		MOV		45H,R5
-		MOV		44H,R6			;ASCII
+		MOV		46H,R5
+		MOV		45H,R6			;ASCII
 
 		MOV		A,26H			;取年参数
 		LCALL	CF
