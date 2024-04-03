@@ -6,14 +6,19 @@
 ;10H-11H	PCF8563T初始化-设置报警及定时器中断
 ;12H		;秒单元		都是BCD码
 ;13H		;分单元		此段空间可被复用
-;14H		;小时单元
-;15H		;日期单元
+;14H		;小时单元	秒中断读取8563存放处
+;15H		;日期单元	也是adjust存放处
 ;16H		;星期单元
 ;17H		;月单元
 ;18H		;年单元
 ;19H-1DH	;报警相关
 ;1EH-1FH	空俩
-;20H-26H	秒中断原始数据读出存放处-再由adjust屏蔽无用位
+;20H		20.0 设置模式=1  走时模式=0
+;			20.1 左移请求=1
+;			20.2 右移请求=1
+;			20.3 加位请求=1
+;			20.4 减去请求=1
+;21H-26H
 ;27H		放键值
 ;28H-2FH	日l	日h	月l	月h 年0 年1	年2	年3
 ;30H-33H	12864屏幕-程序参数
@@ -55,7 +60,7 @@ KEYVAL		EQU		27H
 		ORG		0003H
 		LJMP	INC_RCT			;/INT0中断入口单元
 		ORG		0013H
-		LJMP	INT_7290		;扫描键盘中断
+		LJMP	INT_KEY		;扫描键盘中断
 		ORG		0100H
 START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		;初始化	屏幕
@@ -63,10 +68,19 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
         LCALL   DELAY
         SETB    RST
         LCALL   ST12864_INT ;初始化12864
-        LCALL   HANZI_WRITE ;预先写入屏幕一些数据字符
+        LCALL   HANZI_WRITE ;预先写入屏幕一些数据字符--后期删除
 		CLR		P1.7			;ZLG7290B复位
 		LCALL	DELAY
 		SETB	P1.7
+
+		;串口初始化---后期删除
+    	MOV	TMOD,#20H
+		MOV	TL1,#0FDH		;9600
+		MOV	TH1,#0FDH
+		MOV	PCON,#00H
+		SETB	TR1
+		MOV	SCON,#40H
+
 		;变量存储	PCF8563T	10H-1DH		RAM
 		MOV		10H,#00H		;启动控制字
 		MOV		11H,#1FH		;设置报警及定时器中断
@@ -98,25 +112,73 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		CLR		IT1				;下降沿触发
 		MOV		40H,#32H		;ASCII年高两位-送屏幕初始化
 		MOV		41H,#30H
+		MOV		44H,#2FH
+		MOV		47H,#2FH
+		MOV		4AH,#2FH		; '/'
+		MOV		4DH,#3AH		; ':'
 		MOV		2EH,#0FCH
 		MOV		2FH,#0DAH		;初始化年高两位
-		SJMP	$				;等待中断
+		MOV		20H,#0			;按键状态初始化
 
-;屏幕内容区域	ROM部分
+MAIN_WAIT:
+		CLR		01;20.1
+		CLR		02;20.2
+		CLR		03;20.3
+		CLR		04;20.4
+		JNB		00,MAIN_WAIT	;最外层等待按键,中断的循环
+;SETTING0:		
+		;此层进入设置界面-以下准备工作
+		CLR		EX0				;禁止刷新时间,准备调时
+		MOV     SONG,#0EH		;开启光标
+		LCALL	SEND_ML
+		MOV     SONG,#02H		;光标移至开头
+		LCALL	SEND_ML
+SETTING:		;SETTING下的循环
+		;按键检测
+		JNB		00,RECOVERY	;恢复退出
+		JB		01,RES_L		;左移响应
+		JB		02,RES_R		;右移响应
+		JB		03,RES_A		;加响应
+		JB		04,RES_S		;减响应
+		SJMP	SETTING
+RECOVERY:		;恢复到时间流动状态-SETTING的退出
+		MOV     SONG,#0CH		;关闭光标
+		LCALL	SEND_ML
+		MOV		R7,#07H			;写入参数个数
+		MOV		R0,#12H			;连续变量的首地址
+		MOV		R2,#02H			;从器件的内部地址
+		MOV		R3,#WSLA_8563	;准备向PCF8563写入数据串
+		LCALL	WRNBYT			;完成新的时间刷入
+		SETB	EX0				;允许刷新时间
+		SJMP	MAIN_WAIT		;回到主循环
+RES_L:			;SETTING下左移响应
+		CLR		01
+		SJMP	SETTING
+RES_R:			;SETTING下右移响应
+		CLR		02
+		SJMP	SETTING
+RES_A:			;SETTING下add响应
+		CLR		03
+		SJMP	SETTING
+RES_S:			;SETTING下sub响应
+		CLR		04
+		SJMP	SETTING
+
+;屏幕内容区域	ROM部分--这里测试
 TABLE1:	DB      "2024/03/31/21:27";第一行 16
-TABLE2:	DB      "星期            ";第三行
-TABLE3:	DB      "                ";第二行
+TABLE2:	DB      "                ";第三行
+TABLE3:	DB      "星期            ";第二行
 TABLE4:	DB      "                ";第四行
 
 
 ;中断程序-每秒中断
 INC_RCT:
 		MOV		R7,#07H			;读出数据个数
-		MOV		R0,#20H			;目标数据块首地址
+		MOV		R0,#12H			;目标数据块首地址
 		MOV		R2,#02H			;从器件内部地址
 		MOV		R3,#WSLA_8563
 		MOV		R4,#RSLA_8563	;准备读8563参数
-		LCALL	RDNBYT			;读出数据放置到RAM的20H-26H中
+		LCALL	RDNBYT			;读出数据放置到RAM的12H-18H中
 		LCALL	ADJUST			;调时间调整子程序
 		LCALL	CHAIFEN			;拆分-包含查表
 
@@ -137,7 +199,7 @@ DISP:	LCALL	WRNBYT			;调用ZLG7290B显示
 		RETI
 
 ;按键中断
-INT_7290:
+INT_KEY:
 		PUSH	ACC
 		PUSH	PSW
 		PUSH	00H
@@ -153,7 +215,32 @@ INT_7290:
 		MOV		R4,#RSLA_7290
 		LCALL	RDNBYT
 		;已经存放到KEYVAL中
-		POP		07H
+		MOV		A,#KEYVAL
+		SWAP	A
+		ANL		A,#0FH
+		JNZ		FIN_K			;屏蔽高位按键
+		MOV		A,#KEYVAL
+		DEC		A
+		JZ		KEY1			;按键1按下
+		DEC		A
+		JZ		KEY2			;按键2按下
+		DEC		A
+		JZ		KEY3			;按键3按下
+		DEC		A
+		JZ		KEY4			;按键4按下
+		DEC		A
+		JZ		KEY5			;按键5按下
+		SJMP	FIN_K
+KEY1:	CPL		00			;设置界面是取反操作
+		SJMP	FIN_K
+KEY2:	SETB	01			;其余均是发信号给主程序
+		SJMP	FIN_K
+KEY3:	SETB	02
+		SJMP	FIN_K
+KEY4:	SETB	03
+		SJMP	FIN_K
+KEY5:	SETB	04
+FIN_K:	POP		07H
 		POP		04H
 		POP		03H
 		POP		02H
@@ -247,7 +334,7 @@ CHAIFEN:						;增加ASCII存储
 		PUSH	04H
 		PUSH	05H
 		PUSH	06H
-		MOV		A,20H			;取秒
+		MOV		A,12H			;取秒
 		LCALL	CF				;拆分,查表在R4(H),R3中
 		MOV		38H,R3
 		MOV		39H,R4
@@ -256,7 +343,7 @@ CHAIFEN:						;增加ASCII存储
 		;这里缺代码	将秒转换为4DH的' ' 或者':'
 		MOV		3AH,#02H		;送分隔符-
 
-		MOV		A,21H			;取分钟 参数
+		MOV		A,13H			;取分钟 参数
 		LCALL	CF
 		MOV		3BH,R3
 		MOV		3CH,R4
@@ -264,14 +351,14 @@ CHAIFEN:						;增加ASCII存储
 		MOV		4EH,R6			;ASCII
 		MOV		3DH,#02H
 
-		MOV		A,22H			;取小时 参数
+		MOV		A,14H			;取小时 参数
 		LCALL	CF
 		MOV		3EH,R3
 		MOV		3FH,R4
 		MOV		4CH,R5
 		MOV		4BH,R6			;ASCII
 
-		MOV		A,23H			;取日参数
+		MOV		A,15H			;取日参数
 		LCALL	CF
 		;MOV		A,R3		;拆分后被转码
 		;ORL		A,#01H		;这里不对
@@ -281,7 +368,7 @@ CHAIFEN:						;增加ASCII存储
 		MOV		49H,R5
 		MOV		48H,R6			;ASCII
 
-		MOV		A,25H			;取月参数
+		MOV		A,17H			;取月参数
 		LCALL	CF
 		;MOV		A,R3
 		;ORL		A,#01H
@@ -291,7 +378,7 @@ CHAIFEN:						;增加ASCII存储
 		MOV		46H,R5
 		MOV		45H,R6			;ASCII
 
-		MOV		A,26H			;取年参数
+		MOV		A,18H			;取年参数
 		LCALL	CF
 		;MOV		A,R3
 		;ORL		A,#01H
@@ -300,8 +387,7 @@ CHAIFEN:						;增加ASCII存储
 		MOV		2DH,R4
 		MOV		43H,R5
 		MOV		42H,R6			;ASCII
-		;MOV		2EH,#0FCH		;0
-		;MOV		2FH,#0DAH		;2后期得改
+		;年高两位没有被查表映射,2024/4/2不可被动态修改
 		POP		06H
 		POP		05H
 		POP		04H
@@ -341,24 +427,24 @@ LEDSEG:	DB	0FCH,60H,0DAH,0F2H,66H,0B6H,0BEH,0E4H
 
 ADJUST:
 		PUSH	ACC
-		MOV		A,20H			;处理秒单元
+		MOV		A,12H			;处理秒单元
 		ANL		A,#7FH
-		MOV		20H,A
-		MOV		A,21H			;处理分单元
+		MOV		12H,A
+		MOV		A,13H			;处理分单元
 		ANL		A,#7FH
-		MOV		21H,A
-		MOV		A,22H			;处理小时单元
+		MOV		13H,A
+		MOV		A,14H			;处理小时单元
 		ANL		A,#3FH
-		MOV		22H,A
-		MOV		A,23H			;处理日单元
+		MOV		14H,A
+		MOV		A,15H			;处理日单元
 		ANL		A,#3FH
-		MOV		23H,A
-		MOV		A,24H			;处理星期单元
+		MOV		15H,A
+		MOV		A,16H			;处理星期单元
 		ANL		A,#07H
-		MOV		24H,A
-		MOV		A,25H			;处理月单元
+		MOV		16H,A
+		MOV		A,18H			;处理月单元
 		ANL		A,#1FH
-		MOV		25H,A
+		MOV		18H,A
 		POP		ACC
 		RET
 
@@ -547,5 +633,20 @@ RLP:	SETB	SDA
 		DJNZ	R6,RLP
 		POP		06H
 		RET
-
+;串口--后期删除
+CHAUNKOU:
+    	PUSH	ACC
+		PUSH	PSW
+    	PUSH    00H
+    	MOV 	R0,#12H		;这里填想看的RAM单元
+    	;MOV 	R1,#7
+		MOV		A,@R0
+		MOV		SBUF,A
+		JNB		TI,$
+		CLR		TI
+		;LCALL	DELAY
+    	POP     00H
+    	POP     PSW
+    	POP     ACC
+    	RET
 		END
