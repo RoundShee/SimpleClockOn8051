@@ -39,37 +39,36 @@
 
 SDA			BIT		P1.0
 SCL			BIT		P1.1
-WSLA_8563	EQU		0A2H		;PCF8563T地址
-RSLA_8563	EQU		0A3H		;
-WSLA_7290	EQU		70H			;ZLG7290B地址
+WSLA_8563	EQU		0A2H	;PCF8563T地址
+RSLA_8563	EQU		0A3H	;
+WSLA_7290	EQU		70H		;ZLG7290B地址
 RSLA_7290	EQU		71H
 
-RST			BIT		P1.3		;ST12864程序
+RST			BIT		P1.3	;ST12864程序
 RS      	BIT		P1.4
 RW      	BIT     P1.5
 EN      	BIT     P1.6
-SONG    	EQU     30H         ;要写入数据的存储单元-RAM 目前与12864不冲突
-READ    	EQU     31H         ;读出数据存储单元
-XUNHUAN 	EQU     32H         ;循环变量单元
-COUNT   	EQU     33H         ;查表计数器
+SONG    	EQU     30H     ;要写入数据的存储单元-RAM 目前与12864不冲突
+READ    	EQU     31H     ;读出数据存储单元
+XUNHUAN 	EQU     32H     ;循环变量单元
+COUNT   	EQU     33H     ;查表计数器
 KEYVAL		EQU		27H
 
 ;主程序准备
 		ORG		0000H
 		LJMP	START
 		ORG		0003H
-		LJMP	INC_RCT			;/INT0中断入口单元
+		LJMP	INC_RCT		;/INT0中断入口单元
 		ORG		0013H
 		LJMP	INT_KEY		;扫描键盘中断
 		ORG		0100H
-START:	MOV		SP,#60H			;堆栈上移-避开变量区域
+START:	MOV		SP,#60H		;堆栈上移-避开变量区域
 		;初始化	屏幕
         CLR     RST         ;屏幕芯片复位上电
         LCALL   DELAY
         SETB    RST
         LCALL   ST12864_INT ;初始化12864
-        LCALL   HANZI_WRITE ;预先写入屏幕一些数据字符--后期删除
-		CLR		P1.7			;ZLG7290B复位
+		CLR		P1.7		;ZLG7290B复位
 		LCALL	DELAY
 		SETB	P1.7
 
@@ -82,75 +81,75 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		MOV	SCON,#40H
 
 		;变量存储	PCF8563T	10H-1DH		RAM
-		MOV		10H,#00H		;启动控制字
-		MOV		11H,#1FH		;设置报警及定时器中断
+		MOV		10H,#00H	;启动控制字
+		MOV		11H,#1FH	;设置报警及定时器中断
 
-		MOV		12H,#20H		;秒单元
-		MOV		13H,#03H		;分单元
-		MOV		14H,#10H		;小时单元
-		MOV		15H,#01H		;日期单元
-		MOV		16H,#01H		;星期单元
-		MOV		17H,#04H		;月单元
-		MOV		18H,#24H		;年单元
+		MOV		12H,#20H	;秒单元
+		MOV		13H,#03H	;分单元
+		MOV		14H,#10H	;小时单元
+		MOV		15H,#01H	;日期单元
+		MOV		16H,#01H	;星期单元
+		MOV		17H,#04H	;月单元
+		MOV		18H,#24H	;年单元
 
-		MOV		19H,#00H		;设置分报警
-		MOV		1AH,#00H		;设置小时报警
-		MOV		1BH,#00H		;设置日期报警
-		MOV		1CH,#00H		;设置星期报警
-		MOV		1DH,#83H		;设定CLKOUT的频率1Hz
+		MOV		19H,#00H	;设置分报警
+		MOV		1AH,#00H	;设置小时报警
+		MOV		1BH,#00H	;设置日期报警
+		MOV		1CH,#00H	;设置星期报警
+		MOV		1DH,#83H	;设定CLKOUT的频率1Hz
 		;写入以上变量
-		MOV		R7,#0EH			;写入参数个数
-		MOV		R0,#10H			;连续变量的首地址
-		MOV		R2,#00H			;从器件的内部地址
-		MOV		R3,#WSLA_8563	;准备向PCF8563写入数据串
-		LCALL	WRNBYT			;写入时间,控制命令到8563
-		SETB	EA				;允许中断
-		SETB	EX0				;开启外部中断0CLK
-		SETB	EX1				;按键中断开启
-		SETB	PX1				;按键优先于CLK
-		SETB	IT0				;触发方式-低电平触发
-		SETB	IT1				;下降沿触发
-		MOV		40H,#32H		;ASCII年高两位-送屏幕初始化
+		MOV		R7,#0EH		;写入参数个数
+		MOV		R0,#10H		;连续变量的首地址
+		MOV		R2,#00H		;从器件的内部地址
+		MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
+		LCALL	WRNBYT		;写入时间,控制命令到8563
+		SETB	EA			;允许中断
+		SETB	EX0			;开启外部中断0CLK
+		SETB	EX1			;按键中断开启
+		SETB	PX1			;按键优先于CLK
+		SETB	IT0			;触发方式-低电平触发
+		SETB	IT1			;下降沿触发
+		MOV		40H,#32H	;ASCII年高两位-送屏幕初始化
 		MOV		41H,#30H
 		MOV		44H,#2FH
 		MOV		47H,#2FH
-		MOV		4AH,#2FH		; '/'
-		MOV		4DH,#3AH		; ':'
+		MOV		4AH,#2FH	; '/'
+		MOV		4DH,#3AH	; ':'
 		MOV		2EH,#0FCH
-		MOV		2FH,#0DAH		;初始化年高两位
-		MOV		20H,#0			;按键状态初始化
+		MOV		2FH,#0DAH	;初始化年高两位
+		MOV		20H,#0		;按键状态初始化
 
 MAIN_WAIT:
 		CLR		01;20.1
 		CLR		02;20.2
 		CLR		03;20.3
 		CLR		04;20.4
-		JNB		00,MAIN_WAIT	;最外层等待按键,中断的循环
+		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:		
 		;此层进入设置界面-以下准备工作
-		CLR		EX0				;禁止刷新时间,准备调时
-		MOV     SONG,#0EH		;开启光标
+		CLR		EX0			;禁止刷新时间,准备调时
+		MOV     SONG,#0EH	;开启光标
 		LCALL	SEND_ML
-		MOV     SONG,#02H		;光标移至开头
+		MOV     SONG,#02H	;光标移至开头
 		LCALL	SEND_ML
 SETTING:		;SETTING下的循环
 		;按键检测
 		JNB		00,RECOVERY	;恢复退出
-		JB		01,RES_L		;左移响应
-		JB		02,RES_R		;右移响应
-		JB		03,RES_A		;加响应
-		JB		04,RES_S		;减响应
+		JB		01,RES_L	;左移响应
+		JB		02,RES_R	;右移响应
+		JB		03,RES_A	;加响应
+		JB		04,RES_S	;减响应
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
-		MOV     SONG,#0CH		;关闭光标
+		MOV     SONG,#0CH	;关闭光标
 		LCALL	SEND_ML
-		MOV		R7,#07H			;写入参数个数
-		MOV		R0,#12H			;连续变量的首地址
-		MOV		R2,#02H			;从器件的内部地址
-		MOV		R3,#WSLA_8563	;准备向PCF8563写入数据串
-		LCALL	WRNBYT			;完成新的时间刷入
-		SETB	EX0				;允许刷新时间
-		SJMP	MAIN_WAIT		;回到主循环
+		MOV		R7,#07H		;写入参数个数
+		MOV		R0,#12H		;连续变量的首地址
+		MOV		R2,#02H		;从器件的内部地址
+		MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
+		LCALL	WRNBYT		;完成新的时间刷入
+		SETB	EX0			;允许刷新时间
+		SJMP	MAIN_WAIT	;回到主循环
 RES_L:			;SETTING下左移响应
 		CLR		01
 		SJMP	SETTING
@@ -165,36 +164,36 @@ RES_S:			;SETTING下sub响应
 		SJMP	SETTING
 
 ;屏幕内容区域	ROM部分--这里测试
-TABLE1:	DB      "2024/03/31/21:27";第一行 16
-TABLE2:	DB      "                ";第三行
-TABLE3:	DB      "星期            ";第二行
-TABLE4:	DB      "                ";第四行
+TAB_WEK:DB      "一二三四五六天";测试
+TAB_SE:	DB      "设置";字库
+TAB_TE:	DB      "温度";如果有时间就做
+TAB_AL:	DB      "闹钟";
 
 
 ;中断程序-每秒中断
 INC_RCT:
-		MOV		R7,#07H			;读出数据个数
-		MOV		R0,#12H			;目标数据块首地址
-		MOV		R2,#02H			;从器件内部地址
+		MOV		R7,#07H		;读出数据个数
+		MOV		R0,#12H		;目标数据块首地址
+		MOV		R2,#02H		;从器件内部地址
 		MOV		R3,#WSLA_8563
-		MOV		R4,#RSLA_8563	;准备读8563参数
-		LCALL	RDNBYT			;读出数据放置到RAM的12H-18H中
-		LCALL	ADJUST			;调时间调整子程序
-		LCALL	CHAIFEN			;拆分-包含查表
+		MOV		R4,#RSLA_8563;准备读8563参数
+		LCALL	RDNBYT		;读出数据放置到RAM的12H-18H中
+		LCALL	ADJUST		;调时间调整子程序
+		LCALL	CHAIFEN		;拆分-包含查表
 
-		MOV		SONG,#80H		;上一行显示
-		MOV		XUNHUAN,#16		;2024/11/11/11:11
+		MOV		SONG,#80H	;上一行显示
+		MOV		XUNHUAN,#16	;2024/11/11/11:11
 		MOV		R0,#40H
-		LCALL	TIME_WRITE
+		LCALL	RAM_WRITE
 		;上面测试
 		MOV		R7,#08H
 		MOV		R2,#10H
 		MOV		R3,#WSLA_7290
-		JNB		P1.2,YEARS		;使用P1.2控制显示内容  1-显示年月日
-		MOV		R0,#38H			;显示小时分钟秒
+		JNB		P1.2,YEARS	;使用P1.2控制显示内容  1-显示年月日
+		MOV		R0,#38H		;显示小时分钟秒
 		SJMP	DISP
-YEARS:	MOV		R0,#28H			;显示年月日
-DISP:	LCALL	WRNBYT			;调用ZLG7290B显示
+YEARS:	MOV		R0,#28H		;显示年月日
+DISP:	LCALL	WRNBYT		;调用ZLG7290B显示
 		JNB		P3.2,$
 		RETI
 
@@ -208,7 +207,7 @@ INT_KEY:
 		PUSH	04H
 		PUSH	07H
 
-		MOV		R0,#KEYVAL		;源目地
+		MOV		R0,#KEYVAL	;源目地
 		MOV		R7,#01H
 		MOV		R2,#01H
 		MOV		R3,#WSLA_7290
@@ -218,18 +217,18 @@ INT_KEY:
 		MOV		A,#KEYVAL
 		SWAP	A
 		ANL		A,#0FH
-		JNZ		FIN_K			;屏蔽高位按键
+		JNZ		FIN_K		;屏蔽高位按键
 		MOV		A,#KEYVAL
 		DEC		A
-		JZ		KEY1			;按键1按下
+		JZ		KEY1		;按键1按下
 		DEC		A
-		JZ		KEY2			;按键2按下
+		JZ		KEY2		;按键2按下
 		DEC		A
-		JZ		KEY3			;按键3按下
+		JZ		KEY3		;按键3按下
 		DEC		A
-		JZ		KEY4			;按键4按下
+		JZ		KEY4		;按键4按下
 		DEC		A
-		JZ		KEY5			;按键5按下
+		JZ		KEY5		;按键5按下
 		SJMP	FIN_K
 KEY1:	CPL		00			;设置界面是取反操作
 		SJMP	FIN_K
@@ -283,12 +282,12 @@ CHK_LOP:MOV		A,P2
 		CLR		EN
 		RET
 
-;写汉字子程序
-HANZI_WRITE:				;写汉字子程序
-		MOV		SONG,#80H	;设定DDRAM地址AC=0
+;写ROM内容到LCD
+;入口参数
+;SONG起始位置,XUNHUAN多少位,R0源始地址
+ROM_WRITE:
 		LCALL	SEND_ML
-		MOV		XUNHUAN,#64	;全部显示
-		MOV		DPTR,#TABLE1
+		MOV		DPTR,R0
 		MOV		A,#00H
 		MOV		COUNT,#00H
 HANZI_LOOP:
@@ -300,11 +299,21 @@ HANZI_LOOP:
 		DJNZ	XUNHUAN,HANZI_LOOP
 		RET
 
+;设置模式下LCD显示规划
+SET_WRLCD:
+		MOV		SONG,#80H;第一行
+		MOV		XUNHUAN,#4;4字节,俩汉字
+		MOV		R0,#TAB_SE
+		LCALL	ROM_WRITE
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	;时间串
+		MOV		R0,#40H
+		LCALL	RAM_WRITE
 
 ;写时间至LCD子程序
 ;入口参数
 ;SONG起始位置,XUNHUAN多少位,R0源始地址
-TIME_WRITE:					;魔改程序
+RAM_WRITE:					;魔改程序
 		LCALL	SEND_ML
 TIMWRT_LOOP:
 		MOV		A,@R0
