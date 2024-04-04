@@ -338,9 +338,14 @@ CHAIFEN:						;增加ASCII存储
 		LCALL	CF				;拆分,查表在R4(H),R3中
 		MOV		38H,R3
 		MOV		39H,R4
-		;MOV		4DH,R5
-		;MOV		4CH,R6			;ASCII
-		;这里缺代码	将秒转换为4DH的' ' 或者':'
+		MOV		A,R5
+		ANL		A,#01H			;要末尾
+		JZ		GIVESPACE
+		MOV		4DH,#3AH		;给冒号ASII
+		SJMP	GIVEMIN
+GIVESPACE:
+		MOV		4DH,#20H		;给空格ASCII
+GIVEMIN:
 		MOV		3AH,#02H		;送分隔符-
 
 		MOV		A,13H			;取分钟 参数
