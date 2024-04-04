@@ -403,19 +403,19 @@ CF:		PUSH	02H
 		MOV		DPTR,#LEDSEG
 		MOV		R2,A			;备份A
 		ANL		A,#0FH			;取低位
-		ADD		A,'0'
+		ADD		A,#30H
 		MOV		R5,A
 		CLR		C
-		SUBB	A,'0'
+		SUBB	A,#30H
 		MOVC	A,@A+DPTR		;查表
 		MOV		R3,A			;到R3
 		MOV		A,R2
 		SWAP	A
 		ANL		A,#0FH
-		ADD		A,'0'
+		ADD		A,#30H
 		MOV		R6,A
 		CLR		C
-		SUBB	A,'0'
+		SUBB	A,#30H
 		MOVC	A,@A+DPTR
 		MOV		R4,A			;到R4
 		POP		DPL
