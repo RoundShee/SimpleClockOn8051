@@ -109,7 +109,7 @@ START:	MOV		SP,#60H			;堆栈上移-避开变量区域
 		SETB	EX1				;按键中断开启
 		SETB	PX1				;按键优先于CLK
 		SETB	IT0				;触发方式-低电平触发
-		CLR		IT1				;下降沿触发
+		SETB	IT1				;下降沿触发
 		MOV		40H,#32H		;ASCII年高两位-送屏幕初始化
 		MOV		41H,#30H
 		MOV		44H,#2FH
@@ -209,8 +209,8 @@ INT_KEY:
 		PUSH	07H
 
 		MOV		R0,#KEYVAL		;源目地
-		MOV		R7,01H
-		MOV		R2,01H
+		MOV		R7,#01H
+		MOV		R2,#01H
 		MOV		R3,#WSLA_7290
 		MOV		R4,#RSLA_7290
 		LCALL	RDNBYT
