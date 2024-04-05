@@ -214,11 +214,12 @@ INT_KEY:
 		MOV		R4,#RSLA_7290
 		LCALL	RDNBYT
 		;已经存放到KEYVAL中
-		MOV		A,#KEYVAL
+		MOV		R0,#KEYVAL
+		MOV		A,@R0
 		SWAP	A
 		ANL		A,#0FH
 		JNZ		FIN_K		;屏蔽高位按键
-		MOV		A,#KEYVAL
+		MOV		A,@R0
 		DEC		A
 		JZ		KEY1		;按键1按下
 		DEC		A
@@ -284,10 +285,9 @@ CHK_LOP:MOV		A,P2
 
 ;写ROM内容到LCD
 ;入口参数
-;SONG起始位置,XUNHUAN多少位,R0源始地址
+;SONG起始位置,XUNHUAN多少位,DPTR源始地址
 ROM_WRITE:
 		LCALL	SEND_ML
-		MOV		DPTR,R0
 		MOV		A,#00H
 		MOV		COUNT,#00H
 HANZI_LOOP:
@@ -303,7 +303,7 @@ HANZI_LOOP:
 SET_WRLCD:
 		MOV		SONG,#80H;第一行
 		MOV		XUNHUAN,#4;4字节,俩汉字
-		MOV		R0,#TAB_SE
+		MOV		DPTR,#TAB_SE;地址名送入
 		LCALL	ROM_WRITE
 		MOV		SONG,#90H	;第二行
 		MOV		XUNHUAN,#16	;时间串
