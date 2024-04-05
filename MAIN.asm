@@ -12,13 +12,16 @@
 ;17H		;月单元
 ;18H		;年单元
 ;19H-1DH	;报警相关
-;1EH-1FH	空俩
+;1EH		存储setting模式下的用户指针位移0-16
+;1FH		5FH	'_'
 ;20H		20.0 设置模式=1  走时模式=0
 ;			20.1 左移请求=1
 ;			20.2 右移请求=1
 ;			20.3 加位请求=1
 ;			20.4 减去请求=1
-;21H-26H
+;			20.x 预留
+;21H		08	SETTING模式下的秒脉冲	下面按位调节指示起码得要17位
+;22H-26H								可以使用状态机的思路 利用加减
 ;27H		放键值
 ;28H-2FH	日l	日h	月l	月h 年0 年1	年2	年3
 ;30H-33H	12864屏幕-程序参数
@@ -115,6 +118,7 @@ START:	MOV		SP,#60H		;堆栈上移-避开变量区域
 		MOV		47H,#2FH
 		MOV		4AH,#2FH	; '/'
 		MOV		4DH,#3AH	; ':'
+		MOV		1FH,#5FH	; '_'
 		MOV		2EH,#0FCH
 		MOV		2FH,#0DAH	;初始化年高两位
 		MOV		20H,#0		;按键状态初始化
@@ -127,12 +131,245 @@ MAIN_WAIT:
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:		
 		;此层进入设置界面-以下准备工作
-		CLR		EX0			;禁止刷新时间,准备调时
-		MOV     SONG,#0EH	;开启光标
-		LCALL	SEND_ML
-		MOV     SONG,#02H	;光标移至开头
-		LCALL	SEND_ML
+		MOV		SONG,#80H	;内部地址第一行
+		MOV		XUNHUAN,#4	;俩汉字
+		MOV		DPTR,#TAB_SE
+		LCALL	ROM_WRITE
+		MOV		SONG,#92H	;第二行
+		MOV		XUNHUAN,#2	;汉字
+		MOV		A,16H		;周提取
+		MOV		DPTR,#TAB_WEK;
+		MOV		1EH,#00H	;清空用户指针
 SETTING:		;SETTING下的循环
+		;这里先写入LCD屏幕格式时间
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	;时间串
+		MOV		R0,#40H		;源数据地址
+		LCALL	RAM_WRITE
+		;实现一个case大法
+		MOV		A,1EH
+		JZ		UPT0
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#1
+		JZ		UPT1
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#2
+		JZ		UPT2
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#3
+		JZ		UPT3
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#4
+		JZ		UPT4
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#5
+		JZ		UPT5
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#6
+		JZ		UPT6
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#7
+		JZ		UPT7
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#8
+		JZ		UPT8
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#9
+		JZ		UPT9
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#10
+		JZ		UPT10
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#11
+		JZ		UPT11
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#12
+		JZ		UPT12
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#13
+		JZ		UPT13
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#14
+		JZ		UPT14
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#15
+		JZ		UPT15
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#16
+		JZ		UPT16
+UPT0:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,40H
+		MOV		40H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#40H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,40H
+		MOV		40H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT1:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,41H
+		MOV		41H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#41H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,41H
+		MOV		41H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT2:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,42H
+		MOV		42H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#42H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,42H
+		MOV		42H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT3:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,43H
+		MOV		43H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#43H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,43H
+		MOV		43H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT4:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,45H
+		MOV		45H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#45H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,45H
+		MOV		45H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT5:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,46H
+		MOV		46H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#46H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,46H
+		MOV		46H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT6:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,48H
+		MOV		48H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#48H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,48H
+		MOV		48H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT7:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,49H
+		MOV		49H,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#49H		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,49H
+		MOV		49H,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT8:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,4BH
+		MOV		4BH,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#4BH		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,4BH
+		MOV		4BH,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT9:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,4CH
+		MOV		4CH,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#4CH		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,4CH
+		MOV		4CH,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT10:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,4EH
+		MOV		4EH,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#4EH		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,4EH
+		MOV		4EH,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+UPT11:	
+		JB		08,NOUPT	;JUMPto不写入下划线
+		MOV		A,4FH
+		MOV		4FH,1FH
+		MOV		1FH,A
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#16	
+		MOV		R0,#4FH		;源数据地址
+		LCALL	RAM_WRITE
+		MOV		A,4FH
+		MOV		4FH,1FH
+		MOV		1FH,A
+		LJMP	NOUPT
+NOUPT:
 		;按键检测
 		JNB		00,RECOVERY	;恢复退出
 		JB		01,RES_L	;左移响应
@@ -141,25 +378,35 @@ SETTING:		;SETTING下的循环
 		JB		04,RES_S	;减响应
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
-		MOV     SONG,#0CH	;关闭光标
-		LCALL	SEND_ML
+		;这里删除了光标
 		MOV		R7,#07H		;写入参数个数
 		MOV		R0,#12H		;连续变量的首地址
 		MOV		R2,#02H		;从器件的内部地址
 		MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
 		LCALL	WRNBYT		;完成新的时间刷入
-		SETB	EX0			;允许刷新时间
+		;SETB	EX0			;允许刷新时间
 		SJMP	MAIN_WAIT	;回到主循环
 RES_L:			;SETTING下左移响应
 		CLR		01
-		MOV     SONG,#10H	;光标左移
-		LCALL	SEND_ML
+		MOV		A,1EH
+		JZ		LEFTTORIGHT
+		DEC		A
+		MOV		1EH,A
 		SJMP	SETTING
+LEFTTORIGHT:
+		MOV		1EH,#11		;当前边界
 RES_R:			;SETTING下右移响应
 		CLR		02
-		MOV     SONG,#14H	;光标右移
-		LCALL	SEND_ML
+		MOV		A,1EH
+		CLR		C
+		SUBB	A,#11
+		JZ		RIGHTTOL
+		MOV		A,1EH
+		INC		A
+		MOV		1EH,A
 		SJMP	SETTING
+RIGHTTOL:
+		MOV		1EH,#00H
 RES_A:			;SETTING下add响应
 		CLR		03
 		SJMP	SETTING
@@ -168,7 +415,7 @@ RES_S:			;SETTING下sub响应
 		SJMP	SETTING
 
 ;屏幕内容区域	ROM部分--这里测试
-TAB_WEK:DB      "一二三四五六天";测试
+TAB_WEK:DB      "周一二三四五六天";测试
 TAB_SE:	DB      "设置";字库
 TAB_TE:	DB      "温度";如果有时间就做
 TAB_AL:	DB      "闹钟";
@@ -176,6 +423,7 @@ TAB_AL:	DB      "闹钟";
 
 ;中断程序-每秒中断
 INC_RCT:
+		JB		00,SECOND	;要是处于setting模式跳转
 		MOV		R7,#07H		;读出数据个数
 		MOV		R0,#12H		;目标数据块首地址
 		MOV		R2,#02H		;从器件内部地址
@@ -189,6 +437,21 @@ INC_RCT:
 		MOV		XUNHUAN,#16	;2024/11/11/11:11
 		MOV		R0,#40H
 		LCALL	RAM_WRITE
+		MOV		SONG,#90H	;第二行
+		MOV		XUNHUAN,#2	;汉字"周"
+		MOV		DPTR,#TAB_WEK
+		LCALL	ROM_WRITE
+		MOV		SONG,#92H	;第二行
+		MOV		XUNHUAN,#2	;汉字
+		MOV		A,16H		;周提取
+		MOV		DPTR,#TAB_WEK;
+		INC		A
+SEEK_W:	INC		DPTR
+		INC		DPTR
+		DEC		A
+		JNZ		SEEK_W
+		LCALL	ROM_WRITE	;写入周几
+
 		;上面测试
 		MOV		R7,#08H
 		MOV		R2,#10H
@@ -199,6 +462,8 @@ INC_RCT:
 YEARS:	MOV		R0,#28H		;显示年月日
 DISP:	LCALL	WRNBYT		;调用ZLG7290B显示
 		JNB		P3.2,$
+		RETI
+SECOND:	CPL		08			;21H最低为==秒脉冲
 		RETI
 
 ;按键中断
