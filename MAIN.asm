@@ -152,9 +152,13 @@ RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		SJMP	MAIN_WAIT	;回到主循环
 RES_L:			;SETTING下左移响应
 		CLR		01
+		MOV     SONG,#10H	;光标左移
+		LCALL	SEND_ML
 		SJMP	SETTING
 RES_R:			;SETTING下右移响应
 		CLR		02
+		MOV     SONG,#14H	;光标右移
+		LCALL	SEND_ML
 		SJMP	SETTING
 RES_A:			;SETTING下add响应
 		CLR		03
