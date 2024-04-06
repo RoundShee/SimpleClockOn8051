@@ -12,16 +12,13 @@
 ;17H		;月单元
 ;18H		;年单元
 ;19H-1DH	;报警相关
-;1EH		存储setting模式下的用户指针位移0-16
+;1EH		;还是指针
 ;1FH		5FH	'_'
-;20H		20.0 设置模式=1  走时模式=0
-;			20.1 左移请求=1
-;			20.2 右移请求=1
-;			20.3 加位请求=1
-;			20.4 减去请求=1
+;20H		20.0 设置模式=1  走时模式=0	key16
+;			20.1 按键数据可被主程序读取
 ;			20.x 预留
-;21H		08	SETTING模式下的秒脉冲	下面按位调节指示起码得要17位
-;22H-26H								可以使用状态机的思路 利用加减
+;21H		0F	秒脉冲
+;22H-26H
 ;27H		放键值
 ;28H-2FH	日l	日h	月l	月h 年0 年1	年2	年3
 ;30H-33H	12864屏幕-程序参数
@@ -37,7 +34,7 @@
 ;4BH-4CH	时h	时l
 ;4DH		':'
 ;4EH-4FH	分h	分l
-;50H-5FH	
+;50H-5FH	年年年年月月日日时时分分周50H-5CH
 ;60H		以上堆栈
 
 SDA			BIT		P1.0
@@ -124,10 +121,7 @@ START:	MOV		SP,#60H		;堆栈上移-避开变量区域
 		MOV		20H,#0		;按键状态初始化
 
 MAIN_WAIT:
-		CLR		01;20.1
-		CLR		02;20.2
-		CLR		03;20.3
-		CLR		04;20.4
+		;这里曾经存放着四位按键操控判断
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:		
 		;此层进入设置界面-以下准备工作
@@ -135,247 +129,33 @@ MAIN_WAIT:
 		MOV		XUNHUAN,#4	;俩汉字
 		MOV		DPTR,#TAB_SE
 		LCALL	ROM_WRITE
-		MOV		SONG,#92H	;第二行
-		MOV		XUNHUAN,#2	;汉字
-		MOV		A,16H		;周提取
-		MOV		DPTR,#TAB_WEK;
-		MOV		1EH,#00H	;清空用户指针
+		MOV		50H,#FFH	;年
+		MOV		51H,#FFH
+		MOV		52H,#FFH
+		MOV		53H,#FFH	
+		MOV		54H,#FFH	;月
+		MOV		55H,#FFH
+		MOV		56H,#FFH	;日
+		MOV		57H,#FFH
+		MOV		58H,#FFH	;时
+		MOV		59H,#FFH
+		MOV		5AH,#FFH	;分
+		MOV		50H,#FFH
+		MOV		5CH,#FFH	;周
+		MOV		1EH,#FFH	;指针
 SETTING:		;SETTING下的循环
 		;这里先写入LCD屏幕格式时间
 		MOV		SONG,#90H	;第二行
 		MOV		XUNHUAN,#16	;时间串
 		MOV		R0,#40H		;源数据地址
 		LCALL	RAM_WRITE
-		;实现一个case大法
-		MOV		A,1EH
-		JZ		UPT0
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#1
-		JZ		UPT1
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#2
-		JZ		UPT2
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#3
-		JZ		UPT3
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#4
-		JZ		UPT4
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#5
-		JZ		UPT5
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#6
-		JZ		UPT6
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#7
-		JZ		UPT7
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#8
-		JZ		UPT8
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#9
-		JZ		UPT9
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#10
-		JZ		UPT10
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#11
-		JZ		UPT11
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#12
-		JZ		UPT12
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#13
-		JZ		UPT13
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#14
-		JZ		UPT14
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#15
-		JZ		UPT15
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#16
-		JZ		UPT16
-UPT0:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,40H
-		MOV		40H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#40H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,40H
-		MOV		40H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT1:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,41H
-		MOV		41H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#41H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,41H
-		MOV		41H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT2:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,42H
-		MOV		42H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#42H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,42H
-		MOV		42H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT3:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,43H
-		MOV		43H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#43H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,43H
-		MOV		43H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT4:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,45H
-		MOV		45H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#45H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,45H
-		MOV		45H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT5:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,46H
-		MOV		46H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#46H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,46H
-		MOV		46H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT6:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,48H
-		MOV		48H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#48H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,48H
-		MOV		48H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT7:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,49H
-		MOV		49H,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#49H		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,49H
-		MOV		49H,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT8:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,4BH
-		MOV		4BH,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#4BH		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,4BH
-		MOV		4BH,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT9:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,4CH
-		MOV		4CH,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#4CH		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,4CH
-		MOV		4CH,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT10:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,4EH
-		MOV		4EH,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#4EH		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,4EH
-		MOV		4EH,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-UPT11:	
-		JB		08,NOUPT	;JUMPto不写入下划线
-		MOV		A,4FH
-		MOV		4FH,1FH
-		MOV		1FH,A
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	
-		MOV		R0,#4FH		;源数据地址
-		LCALL	RAM_WRITE
-		MOV		A,4FH
-		MOV		4FH,1FH
-		MOV		1FH,A
-		LJMP	NOUPT
-NOUPT:
+		;这里恐怕又是case才能实现_闪烁
 		;按键检测
 		JNB		00,RECOVERY	;恢复退出
-		JB		01,RES_L	;左移响应
-		JB		02,RES_R	;右移响应
-		JB		03,RES_A	;加响应
-		JB		04,RES_S	;减响应
+		;JB		01,RES_L	;左移响应
+		;JB		02,RES_R	;右移响应
+		;JB		03,RES_A	;加响应
+		;JB		04,RES_S	;减响应
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		;这里删除了光标
@@ -386,33 +166,7 @@ RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		LCALL	WRNBYT		;完成新的时间刷入
 		;SETB	EX0			;允许刷新时间
 		SJMP	MAIN_WAIT	;回到主循环
-RES_L:			;SETTING下左移响应
-		CLR		01
-		MOV		A,1EH
-		JZ		LEFTTORIGHT
-		DEC		A
-		MOV		1EH,A
-		SJMP	SETTING
-LEFTTORIGHT:
-		MOV		1EH,#11		;当前边界
-RES_R:			;SETTING下右移响应
-		CLR		02
-		MOV		A,1EH
-		CLR		C
-		SUBB	A,#11
-		JZ		RIGHTTOL
-		MOV		A,1EH
-		INC		A
-		MOV		1EH,A
-		SJMP	SETTING
-RIGHTTOL:
-		MOV		1EH,#00H
-RES_A:			;SETTING下add响应
-		CLR		03
-		SJMP	SETTING
-RES_S:			;SETTING下sub响应
-		CLR		04
-		SJMP	SETTING
+;这里删除了4按键响应功能跳转
 
 ;屏幕内容区域	ROM部分--这里测试
 TAB_WEK:DB      "周一二三四五六天";测试
@@ -463,7 +217,7 @@ YEARS:	MOV		R0,#28H		;显示年月日
 DISP:	LCALL	WRNBYT		;调用ZLG7290B显示
 		JNB		P3.2,$
 		RETI
-SECOND:	CPL		08			;21H最低为==秒脉冲
+SECOND:	CPL		0F			;21H最高为==秒脉冲
 		RETI
 
 ;按键中断
@@ -487,28 +241,17 @@ INT_KEY:
 		MOV		A,@R0
 		SWAP	A
 		ANL		A,#0FH
-		JNZ		FIN_K		;屏蔽高位按键
+		JNZ		MOREJUD;如果不是0进一步判断
+ISNUM:	SETB	01		;这里可判断为按键是1-9，告诉主程序可读取
+		SJMP	FIN_K	;高位是0到这里就可以退出按键中断了
+MOREJUD:;进一步判断情况,已知按键高位是一
 		MOV		A,@R0
-		DEC		A
-		JZ		KEY1		;按键1按下
-		DEC		A
-		JZ		KEY2		;按键2按下
-		DEC		A
-		JZ		KEY3		;按键3按下
-		DEC		A
-		JZ		KEY4		;按键4按下
-		DEC		A
-		JZ		KEY5		;按键5按下
-		SJMP	FIN_K
-KEY1:	CPL		00			;设置界面是取反操作
-		SJMP	FIN_K
-KEY2:	SETB	01			;其余均是发信号给主程序
-		SJMP	FIN_K
-KEY3:	SETB	02
-		SJMP	FIN_K
-KEY4:	SETB	03
-		SJMP	FIN_K
-KEY5:	SETB	04
+		ANL		A,#0FH	;屏蔽高位
+		JZ		ISNUM	;如果是0就是数字0
+		CLR		C
+		SUBB	A,#06H
+		JNZ		FIN_K	;如果减去6还不是0则是其他功能键-未设定退出
+		CPL		00		;反转主程序状态
 FIN_K:	POP		07H
 		POP		04H
 		POP		03H
