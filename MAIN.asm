@@ -122,6 +122,7 @@ START:	MOV		SP,#60H		;堆栈上移-避开变量区域
 
 MAIN_WAIT:
 		;这里曾经存放着四位按键操控判断
+		CLR		01;
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:		
 		;此层进入设置界面-以下准备工作
@@ -142,9 +143,10 @@ MAIN_WAIT:
 		MOV		58H,#0FFH	;时
 		MOV		59H,#0FFH
 		MOV		5AH,#0FFH	;分
-		MOV		50H,#0FFH
+		MOV		5BH,#0FFH
 		MOV		5CH,#0FFH	;周
 		MOV		1EH,#00H	;指针
+		LCALL	CLRSTR
 SETTING:		;SETTING下的循环
 		;这里先写入LCD屏幕格式时间
 		MOV		SONG,#90H	;第二行
@@ -170,7 +172,7 @@ RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		SJMP	MAIN_WAIT	;回到主循环
 
 ;屏幕内容区域	ROM部分--这里测试
-TAB_WEK:DB      "周一二三四五六天";测试
+TAB_WEK:DB      "周天一二三四五六";测试
 TAB_SE:	DB      "设置";字库
 TAB_TE:	DB      "温度";如果有时间就做
 TAB_AL:	DB      "闹钟";
@@ -283,6 +285,7 @@ REFRESH:
 		MOV		@R0,27H	;存放键值0-9
 		INC		1EH
 		;下面是将50H-5CH刷入40H-4FH
+CLRSTR:
 		MOV		A,50H	;此块刷入到40h年
 		INC		A
 		JZ		TEMP0	;是0说明还没写入
@@ -628,9 +631,9 @@ ADJUST:
 		MOV		A,16H			;处理星期单元
 		ANL		A,#07H
 		MOV		16H,A
-		MOV		A,18H			;处理月单元
+		MOV		A,17H			;处理月单元
 		ANL		A,#1FH
-		MOV		18H,A
+		MOV		17H,A
 		POP		ACC
 		RET
 
