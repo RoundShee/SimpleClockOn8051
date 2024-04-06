@@ -197,7 +197,7 @@ INC_RCT:
 		MOV		XUNHUAN,#2	;汉字"周"
 		MOV		DPTR,#TAB_WEK
 		LCALL	ROM_WRITE
-		MOV		SONG,#92H	;第二行
+		MOV		SONG,#91H	;第二行
 		MOV		XUNHUAN,#2	;汉字
 		MOV		A,16H		;周提取
 		MOV		DPTR,#TAB_WEK;
@@ -245,19 +245,20 @@ INT_KEY:
 		MOV		A,@R0
 		SWAP	A
 		ANL		A,#0FH
-		JNZ		MOREJUD;如果不是0进一步判断
+		JNZ		RETURN;更改位
+		MOV		A,@R0
+		CLR		C
+		SUBB	A,#0BH
+		JNC		FIN_K	;A大不产生借位直接退出
 ISNUM:	SETB	01		;这里可判断为按键是1-9，告诉主程序可读取
 		MOV		A,@R0
-		ANL		A,#0FH
-		MOV		27H,A	;10H变00H
-		SJMP	FIN_K	;高位是0到这里就可以退出按键中断了
-MOREJUD:;进一步判断情况,已知按键高位是一
-		MOV		A,@R0
-		ANL		A,#0FH	;屏蔽高位
-		JZ		ISNUM	;如果是0就是数字0
 		CLR		C
-		SUBB	A,#06H
-		JNZ		FIN_K	;如果减去6还不是0则是其他功能键-未设定退出
+		SUBB	A,#0AH	;0A不借位变0
+		JNC		KEY0	;不借位跳
+		SJMP	FIN_K	;高位是0到这里就可以退出按键中断了
+KEY0:	MOV		27H,#00H
+		SJMP	FIN_K
+RETURN:;进一步判断情况,已知按键高位是一
 		CPL		00		;反转主程序状态
 FIN_K:	POP		07H
 		POP		04H
