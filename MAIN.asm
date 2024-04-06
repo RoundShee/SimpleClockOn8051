@@ -269,14 +269,155 @@ SET_RAMWR:
 		MOV		A,1EH	;取指针值
 		CLR		C
 		SUBB	A,#12
-		JZ		SET_DONE;指针溢出,设置新的时间完成
+		JNZ		REFRESH;指针不溢出,完成时间写入
+		LJMP	SET_DONE
+REFRESH:
 		MOV		A,#50H	;设置区域首地址
 		ADD		A,1EH	;新指针
 		MOV		R0,A	;指向该存的空间
 		MOV		@R0,27H	;存放键值0-9
 		INC		1EH
 		;下面是将50H-5CH刷入40H-4FH
-		
+		MOV		A,50H	;此块刷入到40h年
+		INC		A
+		JZ		TEMP0	;是0说明还没写入
+		MOV		A,50H
+		ADD		A,#30H
+		MOV		40H,A
+		SJMP	NEX0
+TEMP0:	MOV		40H,#20H
+
+NEX0:	MOV		A,51H	;此块刷入到41h年
+		INC		A
+		JZ		TEMP1	;是0说明还没写入
+		MOV		A,51H
+		ADD		A,#30H
+		MOV		41H,A
+		SJMP	NEX1
+TEMP1:	MOV		41H,#20H
+
+NEX1:	MOV		A,52H	;此块刷入到42h年
+		INC		A
+		JZ		TEMP2	;是0说明还没写入
+		MOV		A,52H
+		ADD		A,#30H
+		MOV		42H,A
+		SJMP	NEX2
+TEMP2:	MOV		42H,#20H
+
+NEX2:	MOV		A,53H	;此块刷入到43h年
+		INC		A
+		JZ		TEMP3	;是0说明还没写入
+		MOV		A,53H
+		ADD		A,#30H
+		MOV		43H,A
+		SJMP	NEX21
+TEMP3:	MOV		43H,#20H
+
+NEX21:	MOV		A,54H	;此块刷入到45h月
+		INC		A
+		JZ		TEMP4	;是0说明还没写入
+		MOV		A,54H
+		ADD		A,#30H
+		MOV		45H,A
+		SJMP	NEX3
+TEMP4:	MOV		45H,#20H
+
+NEX3:	MOV		A,55H	;此块刷入到46h月
+		INC		A
+		JZ		TEMP5	;是0说明还没写入
+		MOV		A,55H
+		ADD		A,#30H
+		MOV		46H,A
+		SJMP	NEX31
+TEMP5:	MOV		46H,#20H
+
+NEX31:	MOV		A,56H	;此块刷入到48h日
+		INC		A
+		JZ		TEMP6	;是0说明还没写入
+		MOV		A,56H
+		ADD		A,#30H
+		MOV		48H,A
+		SJMP	NEX4
+TEMP6:	MOV		48H,#20H
+
+NEX4:	MOV		A,57H	;此块刷入到49h日
+		INC		A
+		JZ		TEMP7	;是0说明还没写入
+		MOV		A,57H
+		ADD		A,#30H
+		MOV		49H,A
+		SJMP	NEX5
+TEMP7:	MOV		49H,#20H
+
+NEX5:	MOV		A,58H	;此块刷入到4Bh时
+		INC		A
+		JZ		TEMP8	;是0说明还没写入
+		MOV		A,58H
+		ADD		A,#30H
+		MOV		4BH,A
+		SJMP	NEX6
+TEMP8:	MOV		4BH,#20H
+
+NEX6:	MOV		A,59H	;此块刷入到4Ch时
+		INC		A
+		JZ		TEMP9	;是0说明还没写入
+		MOV		A,59H
+		ADD		A,#30H
+		MOV		4CH,A
+		SJMP	NEX7
+TEMP9:	MOV		4CH,#20H
+
+NEX7:	MOV		A,5AH	;此块刷入到4Eh分
+		INC		A
+		JZ		TEMP10	;是0说明还没写入
+		MOV		A,5AH
+		ADD		A,#30H
+		MOV		4EH,A
+		SJMP	NEX8
+TEMP10:	MOV		4EH,#20H
+
+NEX8:	MOV		A,5BH	;此块刷入到4Fh分
+		INC		A
+		JZ		TEMP11	;是0说明还没写入
+		MOV		A,5BH
+		ADD		A,#30H
+		MOV		4FH,A
+		SJMP	NEX9
+TEMP11:	MOV		4FH,#20H
+
+NEX9:	MOV		A,5CH	;此块刷入周
+		INC		A
+		JZ		NEX10	;是0说明还没写入
+		MOV		A,5CH
+		;
+		SJMP	NEX10
+NEX10:	RET
+SET_DONE:
+		MOV		A,52H
+		SWAP	A
+		ADD		A,53H
+		MOV		18H,A	;更新年
+		MOV		A,54H
+		SWAP	A
+		ADD		A,55H
+		MOV		17H,A	;更新月
+		MOV		A,56H
+		SWAP	A
+		ADD		A,57H
+		MOV		15H,A	;更新日
+		MOV		A,58H
+		SWAP	A
+		ADD		A,59H
+		MOV		14H,A	;更新时
+		MOV		A,5AH
+		SWAP	A
+		ADD		A,5BH
+		MOV		13H,A	;更新分
+		MOV		12H,#00H;归零秒
+		MOV		16H,5CH	;更新周
+		RET
+
 
 ;模块初始化程序
 ST12864_INT:                ;模块初始化程序
