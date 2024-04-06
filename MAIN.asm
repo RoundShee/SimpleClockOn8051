@@ -247,6 +247,8 @@ INT_KEY:
 		ANL		A,#0FH
 		JNZ		MOREJUD;如果不是0进一步判断
 ISNUM:	SETB	01		;这里可判断为按键是1-9，告诉主程序可读取
+		MOV		A,@R0
+		ANL		A,#0FH
 		MOV		27H,A	;10H变00H
 		SJMP	FIN_K	;高位是0到这里就可以退出按键中断了
 MOREJUD:;进一步判断情况,已知按键高位是一
