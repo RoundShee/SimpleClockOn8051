@@ -125,6 +125,8 @@ MAIN_WAIT:
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:		
 		;此层进入设置界面-以下准备工作
+		MOV     SONG,#01H   ;清除屏幕
+        LCALL   SEND_ML
 		MOV		SONG,#80H	;内部地址第一行
 		MOV		XUNHUAN,#4	;俩汉字
 		MOV		DPTR,#TAB_SE
@@ -153,8 +155,8 @@ SETTING:		;SETTING下的循环
 		;按键检测
 		JNB		00,RECOVERY	;放弃设置时间
 		JNB		01,SETTING	;按键标志为0继续等待
-		
-
+		LCALL	SET_RAMWR	;存储按键数据
+		CLR		01
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		;这里删除了光标
@@ -416,6 +418,14 @@ SET_DONE:
 		MOV		13H,A	;更新分
 		MOV		12H,#00H;归零秒
 		MOV		16H,5CH	;更新周
+		MOV		R7,#07H
+		MOV		R0,#12H
+		MOV		R2,#02H
+		MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
+		LCALL	WRNBYT		;写入时间
+		CLR		00
+		MOV     SONG,#01H   ;清除屏幕
+        LCALL   SEND_ML
 		RET
 
 
