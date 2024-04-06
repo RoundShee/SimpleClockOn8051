@@ -12,11 +12,11 @@
 ;17H		;月单元
 ;18H		;年单元
 ;19H-1DH	;报警相关
-;1EH		;还是指针
+;1EH		;还是指针-计数0-12
 ;1FH		5FH	'_'
 ;20H		20.0 设置模式=1  走时模式=0	key16
 ;			20.1 按键数据可被主程序读取
-;			20.x 预留
+;			20.2 预留
 ;21H		0F	秒脉冲
 ;22H-26H
 ;27H		放键值
@@ -129,20 +129,20 @@ MAIN_WAIT:
 		MOV		XUNHUAN,#4	;俩汉字
 		MOV		DPTR,#TAB_SE
 		LCALL	ROM_WRITE
-		MOV		50H,#FFH	;年
-		MOV		51H,#FFH
-		MOV		52H,#FFH
-		MOV		53H,#FFH	
-		MOV		54H,#FFH	;月
-		MOV		55H,#FFH
-		MOV		56H,#FFH	;日
-		MOV		57H,#FFH
-		MOV		58H,#FFH	;时
-		MOV		59H,#FFH
-		MOV		5AH,#FFH	;分
-		MOV		50H,#FFH
-		MOV		5CH,#FFH	;周
-		MOV		1EH,#FFH	;指针
+		MOV		50H,#0FFH	;年
+		MOV		51H,#0FFH
+		MOV		52H,#0FFH
+		MOV		53H,#0FFH	
+		MOV		54H,#0FFH	;月
+		MOV		55H,#0FFH
+		MOV		56H,#0FFH	;日
+		MOV		57H,#0FFH
+		MOV		58H,#0FFH	;时
+		MOV		59H,#0FFH
+		MOV		5AH,#0FFH	;分
+		MOV		50H,#0FFH
+		MOV		5CH,#0FFH	;周
+		MOV		1EH,#00H	;指针
 SETTING:		;SETTING下的循环
 		;这里先写入LCD屏幕格式时间
 		MOV		SONG,#90H	;第二行
@@ -151,22 +151,21 @@ SETTING:		;SETTING下的循环
 		LCALL	RAM_WRITE
 		;这里恐怕又是case才能实现_闪烁
 		;按键检测
-		JNB		00,RECOVERY	;恢复退出
-		;JB		01,RES_L	;左移响应
-		;JB		02,RES_R	;右移响应
-		;JB		03,RES_A	;加响应
-		;JB		04,RES_S	;减响应
+		JNB		00,RECOVERY	;放弃设置时间
+		JNB		01,SETTING	;按键标志为0继续等待
+		
+
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		;这里删除了光标
-		MOV		R7,#07H		;写入参数个数
-		MOV		R0,#12H		;连续变量的首地址
-		MOV		R2,#02H		;从器件的内部地址
-		MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
-		LCALL	WRNBYT		;完成新的时间刷入
-		;SETB	EX0			;允许刷新时间
+		;MOV		R7,#07H		;写入参数个数
+		;MOV		R0,#12H		;连续变量的首地址
+		;MOV		R2,#02H		;从器件的内部地址
+		;MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
+		;LCALL	WRNBYT		;完成新的时间刷入
+		MOV     SONG,#01H   ;清除屏幕
+        LCALL   SEND_ML
 		SJMP	MAIN_WAIT	;回到主循环
-;这里删除了4按键响应功能跳转
 
 ;屏幕内容区域	ROM部分--这里测试
 TAB_WEK:DB      "周一二三四五六天";测试
@@ -177,7 +176,8 @@ TAB_AL:	DB      "闹钟";
 
 ;中断程序-每秒中断
 INC_RCT:
-		JB		00,SECOND	;要是处于setting模式跳转
+		PUSH	PSW
+		JB		00,SERE	;要是处于setting模式跳转
 		MOV		R7,#07H		;读出数据个数
 		MOV		R0,#12H		;目标数据块首地址
 		MOV		R2,#02H		;从器件内部地址
@@ -216,8 +216,10 @@ SEEK_W:	INC		DPTR
 YEARS:	MOV		R0,#28H		;显示年月日
 DISP:	LCALL	WRNBYT		;调用ZLG7290B显示
 		JNB		P3.2,$
+		POP		PSW
 		RETI
-SECOND:	CPL		0F			;21H最高为==秒脉冲
+SERE:CPL		02			;21H最高为==秒脉冲
+		POP		PSW
 		RETI
 
 ;按键中断
@@ -243,6 +245,7 @@ INT_KEY:
 		ANL		A,#0FH
 		JNZ		MOREJUD;如果不是0进一步判断
 ISNUM:	SETB	01		;这里可判断为按键是1-9，告诉主程序可读取
+		MOV		27H,A	;10H变00H
 		SJMP	FIN_K	;高位是0到这里就可以退出按键中断了
 MOREJUD:;进一步判断情况,已知按键高位是一
 		MOV		A,@R0
@@ -260,6 +263,20 @@ FIN_K:	POP		07H
 		POP		PSW
 		POP		ACC
 		RETI
+
+;这里是SETTING模式下有数字按键按下,应当根据指针1EH和自己的RAM空间写入并刷入LCD
+SET_RAMWR:
+		MOV		A,1EH	;取指针值
+		CLR		C
+		SUBB	A,#12
+		JZ		SET_DONE;指针溢出,设置新的时间完成
+		MOV		A,#50H	;设置区域首地址
+		ADD		A,1EH	;新指针
+		MOV		R0,A	;指向该存的空间
+		MOV		@R0,27H	;存放键值0-9
+		INC		1EH
+		;下面是将50H-5CH刷入40H-4FH
+		
 
 ;模块初始化程序
 ST12864_INT:                ;模块初始化程序
@@ -310,17 +327,6 @@ HANZI_LOOP:
 		MOV		A,COUNT
 		DJNZ	XUNHUAN,HANZI_LOOP
 		RET
-
-;设置模式下LCD显示规划
-SET_WRLCD:
-		MOV		SONG,#80H;第一行
-		MOV		XUNHUAN,#4;4字节,俩汉字
-		MOV		DPTR,#TAB_SE;地址名送入
-		LCALL	ROM_WRITE
-		MOV		SONG,#90H	;第二行
-		MOV		XUNHUAN,#16	;时间串
-		MOV		R0,#40H
-		LCALL	RAM_WRITE
 
 ;写时间至LCD子程序
 ;入口参数
