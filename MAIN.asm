@@ -16,8 +16,9 @@
 ;1FH		5FH	'_'
 ;20H		20.0 设置模式=1  走时模式=0	key16
 ;			20.1 按键数据可被主程序读取
-;			20.2 预留
-;21H		0F	秒脉冲
+;			20.2 秒脉冲
+;			20.3 03 控制数码管翻转
+;21H		4秒计数
 ;22H-26H
 ;27H		放键值
 ;28H-2FH	日l	日h	月l	月h 年0 年1	年2	年3
@@ -119,10 +120,19 @@ START:	MOV		SP,#60H		;堆栈上移-避开变量区域
 		MOV		2EH,#0FCH
 		MOV		2FH,#0DAH	;初始化年高两位
 		MOV		20H,#0		;按键状态初始化
+		MOV		21H,#2		;计数
 
 MAIN_WAIT:
-		;这里曾经存放着四位按键操控判断
 		CLR		01;
+		JNB		P1.2,IGNORY	;按键强制拉低则锁定
+		MOV		A,21H
+		JNZ		FOALTING
+		MOV		21H,#03H
+		CPL		03
+FOALTING:
+		JB		02,IGNORY
+		DEC		21H
+IGNORY:
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
 ;SETTING0:
 		;此层进入设置界面-以下准备工作
@@ -216,14 +226,14 @@ SEEK_W:	INC		DPTR
 		MOV		R7,#08H
 		MOV		R2,#10H
 		MOV		R3,#WSLA_7290
-		JNB		P1.2,YEARS	;使用P1.2控制显示内容  1-显示年月日
+		JNB		03,YEARS	;使用P1.2控制显示内容  1-显示年月日
 		MOV		R0,#38H		;显示小时分钟秒
 		SJMP	DISP
 YEARS:	MOV		R0,#28H		;显示年月日
 DISP:	LCALL	WRNBYT		;调用ZLG7290B显示
 		JNB		P3.2,$
-		POP		PSW
-		RETI
+		;POP		PSW
+		;RETI
 SERE:CPL		02			;21H最高为==秒脉冲
 		POP		PSW
 		RETI
