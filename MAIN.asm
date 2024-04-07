@@ -593,6 +593,15 @@ GIVEMIN:
 		MOV		43H,R5
 		MOV		42H,R6			;ASCII
 		;年高两位没有被查表映射,2024/4/2不可被动态修改
+		;现在有了20240407
+		MOV		A,40H
+		CLR		C
+		SUBB	A,#30H
+		MOV		2FH,A
+		MOV		A,41H
+		CLR		C
+		SUBB	A,#30H
+		MOV		2EH,A
 		POP		06H
 		POP		05H
 		POP		04H
