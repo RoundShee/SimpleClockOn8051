@@ -124,13 +124,17 @@ MAIN_WAIT:
 		;这里曾经存放着四位按键操控判断
 		CLR		01;
 		JNB		00,MAIN_WAIT;最外层等待按键,中断的循环
-;SETTING0:		
+;SETTING0:
 		;此层进入设置界面-以下准备工作
 		MOV     SONG,#01H   ;清除屏幕
         LCALL   SEND_ML
 		MOV		SONG,#80H	;内部地址第一行
 		MOV		XUNHUAN,#4	;俩汉字
 		MOV		DPTR,#TAB_SE
+		LCALL	ROM_WRITE
+		MOV		SONG,#88H	;内部地址第三行
+		MOV		XUNHUAN,#2	;汉字
+		MOV		DPTR,#TAB_WEK
 		LCALL	ROM_WRITE
 		MOV		50H,#0FFH	;年
 		MOV		51H,#0FFH
@@ -146,27 +150,25 @@ MAIN_WAIT:
 		MOV		5BH,#0FFH
 		MOV		5CH,#0FFH	;周
 		MOV		1EH,#00H	;指针
-		LCALL	CLRSTR
 SETTING:		;SETTING下的循环
 		;这里先写入LCD屏幕格式时间
 		MOV		SONG,#90H	;第二行
 		MOV		XUNHUAN,#16	;时间串
 		MOV		R0,#40H		;源数据地址
 		LCALL	RAM_WRITE
+		MOV		SONG,#89H	;第三行
+		MOV		XUNHUAN,#1	;时间串
+		MOV		R0,#1FH		;源数据地址
+		LCALL	RAM_WRITE
 		;这里恐怕又是case才能实现_闪烁
-		;按键检测
+AVOID:	;按键检测
 		JNB		00,RECOVERY	;放弃设置时间
-		JNB		01,SETTING	;按键标志为0继续等待
+		JNB		01,AVOID	;按键标志为0继续等待
 		LCALL	SET_RAMWR	;存储按键数据
+		JZ		MAIN_WAIT	;直接回到主时间流动
 		CLR		01
 		SJMP	SETTING
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
-		;这里删除了光标
-		;MOV		R7,#07H		;写入参数个数
-		;MOV		R0,#12H		;连续变量的首地址
-		;MOV		R2,#02H		;从器件的内部地址
-		;MOV		R3,#WSLA_8563;准备向PCF8563写入数据串
-		;LCALL	WRNBYT		;完成新的时间刷入
 		MOV     SONG,#01H   ;清除屏幕
         LCALL   SEND_ML
 		SJMP	MAIN_WAIT	;回到主循环
@@ -275,8 +277,8 @@ FIN_K:	POP		07H
 SET_RAMWR:
 		MOV		A,1EH	;取指针值
 		CLR		C
-		SUBB	A,#12
-		JNZ		REFRESH;指针不溢出,完成时间写入
+		SUBB	A,#14
+		JNC		REFRESH;14,15后不借位C=0刷新
 		LJMP	SET_DONE
 REFRESH:
 		MOV		A,#50H	;设置区域首地址
@@ -285,7 +287,6 @@ REFRESH:
 		MOV		@R0,27H	;存放键值0-9
 		INC		1EH
 		;下面是将50H-5CH刷入40H-4FH
-CLRSTR:
 		MOV		A,50H	;此块刷入到40h年
 		INC		A
 		JZ		TEMP0	;是0说明还没写入
@@ -398,9 +399,13 @@ NEX9:	MOV		A,5CH	;此块刷入周
 		INC		A
 		JZ		NEX10	;是0说明还没写入
 		MOV		A,5CH
-		;
-		SJMP	NEX10
-NEX10:	RET
+		ADD		A,#30H
+		MOV		1FH,A
+		MOV		A,#01H	;传参-未完成
+		RET
+NEX10:	MOV		1FH,#5FH	;没写入就是下划线
+		MOV		A,#01H	
+		RET
 SET_DONE:
 		MOV		A,52H
 		SWAP	A
@@ -432,6 +437,7 @@ SET_DONE:
 		CLR		00
 		MOV     SONG,#01H   ;清除屏幕
         LCALL   SEND_ML
+		MOV		A,#00H	;传参 完成
 		RET
 
 
