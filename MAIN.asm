@@ -127,7 +127,7 @@ MAIN_WAIT:
 		JNB		P1.2,IGNORY	;按键强制拉低则锁定
 		MOV		A,21H
 		JNZ		FOALTING
-		MOV		21H,#03H
+		MOV		21H,#04H
 		CPL		03
 FOALTING:
 		JB		02,IGNORY
@@ -181,7 +181,7 @@ AVOID:	;按键检测
 RECOVERY:		;恢复到时间流动状态-SETTING的退出
 		MOV     SONG,#01H   ;清除屏幕
         LCALL   SEND_ML
-		SJMP	MAIN_WAIT	;回到主循环
+		LJMP	MAIN_WAIT	;回到主循环
 
 ;屏幕内容区域	ROM部分--这里测试
 TAB_WEK:DB      "周天一二三四五六";测试
@@ -287,8 +287,8 @@ FIN_K:	POP		07H
 SET_RAMWR:
 		MOV		A,1EH	;取指针值
 		CLR		C
-		SUBB	A,#14
-		JNC		REFRESH;14,15后不借位C=0刷新
+		SUBB	A,#13
+		JC		REFRESH;14,15后不借位C=0刷新
 		LJMP	SET_DONE
 REFRESH:
 		MOV		A,#50H	;设置区域首地址
@@ -597,11 +597,17 @@ GIVEMIN:
 		MOV		A,40H
 		CLR		C
 		SUBB	A,#30H
-		MOV		2FH,A
+		;MOV		2FH,A
+		SWAP	A
+		MOV		R3,A
 		MOV		A,41H
 		CLR		C
 		SUBB	A,#30H
-		MOV		2EH,A
+		;MOV		2EH,A
+		ADD		A,R3
+		LCALL	CF
+		MOV		2EH,R3
+		MOV		2FH,R4
 		POP		06H
 		POP		05H
 		POP		04H
